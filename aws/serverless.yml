@@ -1,14 +1,17 @@
 # serverless.yml
-service: StarterProject
+service: JigglePants
+
+plugins:
+  - serverless-plugin-dynamo-autoscaling
 
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs12.x
   region: us-west-2
   stage: ${opt:stage, "development"}
 
   environment:
-    TEST_TABLE: ${self:provider.stage}-testTable
+    JIGGLE_DATA: ${self:service}-${self:provider.stage}-jiggleDataTable
 
   iamRoleStatements:
     - Effect: Allow
@@ -16,32 +19,54 @@ provider:
         - dynamodb:Scan
         - dynamodb:GetItem
         - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.TEST_TABLE}"
+        - dynamodb:BatchWriteItem
+        - dynamodb:Query
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.JIGGLE_DATA}"
 
 functions:
-  testLambda:
-    handler: source/test.handler
+  reportData:
+    handler: source/reportData.handler
     events:
       - http:
-          path: handler
+          path: userId/{userId}/sessionId/{sessionId}/reportData
           method: post
+          cors: true
+  getData:
+    handler: source/getData.handler
+    events:
+      - http:
+          path: sessionId/{sessionId}/lastTime/{lastTime}/getData
+          method: get
           cors: true
 
 resources:
   Resources:
-    testTable:
+    jiggleDataTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:provider.environment.TEST_TABLE}
+        TableName: ${self:provider.environment.JIGGLE_DATA}
         AttributeDefinitions:
-          - AttributeName: key
+          - AttributeName: sessionId
             AttributeType: S
+          - AttributeName: time
+            AttributeType: N
         KeySchema:
-          - AttributeName: key
+          - AttributeName: sessionId
             KeyType: HASH
+          - AttributeName: time
+            KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
 
+custom:
+  autoscaling:
+    - table: jiggleDataTable
+      read:
+        minimum: 1
+        maximum: 1000
+        usage: .75
+      write:
+        minimum: 1
+        maximum: 100
+        usage: .75
