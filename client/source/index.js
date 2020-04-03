@@ -6,19 +6,23 @@ const ReactDOM = require("react-dom")
 const MobxReact = require("mobx-react")
 const Mobx = require("mobx")
 import { v4 as uuidv4 } from "uuid"
+import { SwatchesPicker } from "react-color"
 
 require("./index.less")
+
+let swactchColors = [ "#f44336", "#9c27b0", "#2196f3", "#4caf50", "#ffeb3b", "#ff9800", "#795548", "#ffffff" ]
 
 let store = Mobx.observable({
     acceleration: undefined,
     accelerationMagnitude: 0,
     historyData: [],
     graphTime: 100,
-    graphScrollRate: 10,
+    graphScrollRate: 5,
     userId: uuidv4(),
     processedData: {},
     syncStartTime: undefined,
-    senderSyncTime: undefined
+    senderSyncTime: undefined,
+    color: swactchColors[Math.floor(Math.random() * swactchColors.length)]
 })
 
 let cycleSeconds = 10
@@ -55,7 +59,7 @@ window.addEventListener("blur", () => onWindowChange(false))
         this.isSender = urlParams.sender === "1"
         this.mostRecentGetTime = 0
 
-        this.sessionId = 8
+        this.sessionId = 9
 
         if (this.isSender) {
             setInterval(() => {
@@ -93,7 +97,7 @@ window.addEventListener("blur", () => onWindowChange(false))
         let data = {
             userId: store.userId,
             accelData: store.historyData.slice(0),
-            color: "#ff00ff",
+            color: store.color,
             senderSyncTime: store.senderSyncTime
         }
 
@@ -150,6 +154,11 @@ window.addEventListener("blur", () => onWindowChange(false))
         store.senderSyncTime = Date.now() - offsetSeconds * 1000
     }
 
+    onColorChange(color) {
+        console.log(color)
+        store.color = color.hex
+    }
+
     render() {
         let accelDataStr = ""
         let magStr = ""
@@ -161,6 +170,9 @@ window.addEventListener("blur", () => onWindowChange(false))
         let syncButtonStyle = {
             display: store.senderSyncTime !== undefined ? "none" : "flex"
         }
+
+        let colorPicker = store.senderSyncTime !== undefined ?
+            <SwatchesPicker width="90vw" height="75vh" color={store.color} onChangeComplete={ (color) => this.onColorChange(color) } /> : null
 
         if (this.isSender) {
             return (
@@ -178,6 +190,7 @@ window.addEventListener("blur", () => onWindowChange(false))
                         <div>
                             {magStr}
                         </div>
+                        {colorPicker}
                         <div className="syncButtonContainer" style={syncButtonStyle}>
                             <button onClick={() => this.onSyncClick("A")}>A</button>
                             <button onClick={() => this.onSyncClick("B")}>B</button>
@@ -396,7 +409,7 @@ window.addEventListener("blur", () => onWindowChange(false))
 
     render() {
         return (
-            <div>
+            <div className="syncContainer">
                 {this.outText}
             </div>
         )
